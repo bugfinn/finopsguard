@@ -23,3 +23,20 @@ resource "aws_iam_role_policy_attachment" "orphan_scanner_logs" {
   role       = aws_iam_role.orphan_scanner.name
   policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
 }
+
+data "aws_iam_policy_document" "dynamodb_write" {
+  statement {
+    actions   = ["dynamodb:PutItem"]
+    resources = [aws_dynamodb_table.findings.arn]
+  }
+}
+
+resource "aws_iam_policy" "dynamodb_write" {
+  name   = "finopsguard-dynamodb-write"
+  policy = data.aws_iam_policy_document.dynamodb_write.json
+}
+
+resource "aws_iam_role_policy_attachment" "orphan_scanner_dynamodb" {
+  role       = aws_iam_role.orphan_scanner.name
+  policy_arn = aws_iam_policy.dynamodb_write.arn
+}

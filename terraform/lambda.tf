@@ -15,6 +15,12 @@ resource "aws_lambda_function" "orphan_scanner" {
   timeout     = 30
   memory_size = 128
 
+  environment {
+    variables = {
+      FINDINGS_TABLE_NAME = aws_dynamodb_table.findings.name
+    }
+  }
+
   tags = {
     Project     = "finopsguard"
     Environment = "learning"
