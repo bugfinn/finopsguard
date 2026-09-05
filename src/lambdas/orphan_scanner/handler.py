@@ -7,29 +7,46 @@ TABLE_NAME = os.environ["FINDINGS_TABLE_NAME"]
 
 dynamodb = boto3.resource("dynamodb")
 table = dynamodb.Table(TABLE_NAME)
+ec2 = boto3.client("ec2")
+
+
+def find_unattached_volumes():
+    paginator = ec2.get_paginator("describe_volumes")
+    pages = paginator.paginate(
+        Filters=[{"Name": "status", "Values": ["available"]}]
+    )
+
+    volumes = []
+    for page in pages:
+        volumes.extend(page["Volumes"])
+
+    return volumes
 
 
 def handler(event, context):
     now = datetime.now(timezone.utc).isoformat()
+    volumes = find_unattached_volumes()
 
-    item = {
-        "resource_id": "test-connection-check",
-        "discovered_at": now,
-        "reason": "manual test write from Step 5",
-        "status": "test",
-    }
+    for volume in volumes:
+        volume_id = volume["VolumeId"]
+        size_gb = volume["Size"]
+        estimated_monthly_cost = round(size_gb * 0.08, 2)
 
-    table.put_item(Item=item)
+        item = {
+            "resource_id": volume_id,
+            "discovered_at": now,
+            "resource_type": "ebs_volume",
+            "reason": f"unattached, {size_gb}GB",
+            "estimated_monthly_cost": str(estimated_monthly_cost),
+            "status": "flagged",
+        }
+        table.put_item(Item=item)
 
-    print(f"FinOpsGuard: wrote test item to {TABLE_NAME} at {now}")
+    print(f"FinOpsGuard: scan complete, found {len(volumes)} unattached volume(s)")
 
     return {
         "statusCode": 200,
         "body": json.dumps(
-            {
-                "message": "wrote test item",
-                "resource_id": item["resource_id"],
-                "discovered_at": now,
-            }
+            {"message": "scan complete", "unattached_volumes_found": len(volumes)}
         ),
     }

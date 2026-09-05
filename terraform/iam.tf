@@ -40,3 +40,20 @@ resource "aws_iam_role_policy_attachment" "orphan_scanner_dynamodb" {
   role       = aws_iam_role.orphan_scanner.name
   policy_arn = aws_iam_policy.dynamodb_write.arn
 }
+
+data "aws_iam_policy_document" "ec2_read" {
+  statement {
+    actions   = ["ec2:DescribeVolumes"]
+    resources = ["*"]
+  }
+}
+
+resource "aws_iam_policy" "ec2_read" {
+  name   = "finopsguard-ec2-read"
+  policy = data.aws_iam_policy_document.ec2_read.json
+}
+
+resource "aws_iam_role_policy_attachment" "orphan_scanner_ec2" {
+  role       = aws_iam_role.orphan_scanner.name
+  policy_arn = aws_iam_policy.ec2_read.arn
+}
