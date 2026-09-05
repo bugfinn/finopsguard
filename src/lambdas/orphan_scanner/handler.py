@@ -1,8 +1,7 @@
 import json
 import os
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 import boto3
-
 TABLE_NAME = os.environ["FINDINGS_TABLE_NAME"]
 
 dynamodb = boto3.resource("dynamodb")
@@ -42,6 +41,17 @@ def handler(event, context):
             "status": "flagged",
         }
         table.put_item(Item=item)
+        grace_period_end = (
+            datetime.now(timezone.utc) + timedelta(days=7)
+        ).isoformat()
+
+        ec2.create_tags(
+            Resources=[volume_id],
+            Tags=[
+                {"Key": "finopsguard:pending-delete", "Value": grace_period_end},
+                {"Key": "finopsguard:flagged-by", "Value": "finopsguard-orphan-scanner"},
+            ],
+        )
         sns.publish(
             TopicArn=TOPIC_ARN,
             Message=f"Unattached EBS volume {volume_id} ({size_gb}GB, ~${estimated_monthly_cost}/month)",

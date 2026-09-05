@@ -64,7 +64,22 @@ data "aws_iam_policy_document" "sns_publish" {
     resources = [aws_sns_topic.findings_alerts.arn]
   }
 }
+data "aws_iam_policy_document" "ec2_tag" {
+  statement {
+    actions   = ["ec2:CreateTags"]
+    resources = ["arn:aws:ec2:us-east-1:${data.aws_caller_identity.current.account_id}:volume/*"]
+  }
+}
 
+resource "aws_iam_policy" "ec2_tag" {
+  name   = "finopsguard-ec2-tag"
+  policy = data.aws_iam_policy_document.ec2_tag.json
+}
+
+resource "aws_iam_role_policy_attachment" "orphan_scanner_ec2_tag" {
+  role       = aws_iam_role.orphan_scanner.name
+  policy_arn = aws_iam_policy.ec2_tag.arn
+}
 resource "aws_iam_policy" "sns_publish" {
   name   = "finopsguard-sns-publish"
   policy = data.aws_iam_policy_document.sns_publish.json
