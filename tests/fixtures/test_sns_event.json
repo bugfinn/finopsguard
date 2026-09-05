@@ -1,0 +1,11 @@
+{
+  "Records": [
+    {
+      "EventSource": "aws:sns",
+      "Sns": {
+        "Subject": "FinOpsGuard test",
+        "Message": "Test message: manually verifying the Slack notifier, not a real finding."
+      }
+    }
+  ]
+}

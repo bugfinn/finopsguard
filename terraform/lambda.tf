@@ -18,6 +18,7 @@ resource "aws_lambda_function" "orphan_scanner" {
   environment {
     variables = {
       FINDINGS_TABLE_NAME = aws_dynamodb_table.findings.name
+      ALERTS_TOPIC_ARN    = aws_sns_topic.findings_alerts.arn
     }
   }
 

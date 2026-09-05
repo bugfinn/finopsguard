@@ -57,3 +57,20 @@ resource "aws_iam_role_policy_attachment" "orphan_scanner_ec2" {
   role       = aws_iam_role.orphan_scanner.name
   policy_arn = aws_iam_policy.ec2_read.arn
 }
+
+data "aws_iam_policy_document" "sns_publish" {
+  statement {
+    actions   = ["sns:Publish"]
+    resources = [aws_sns_topic.findings_alerts.arn]
+  }
+}
+
+resource "aws_iam_policy" "sns_publish" {
+  name   = "finopsguard-sns-publish"
+  policy = data.aws_iam_policy_document.sns_publish.json
+}
+
+resource "aws_iam_role_policy_attachment" "orphan_scanner_sns" {
+  role       = aws_iam_role.orphan_scanner.name
+  policy_arn = aws_iam_policy.sns_publish.arn
+}

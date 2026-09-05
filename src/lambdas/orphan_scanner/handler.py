@@ -8,7 +8,8 @@ TABLE_NAME = os.environ["FINDINGS_TABLE_NAME"]
 dynamodb = boto3.resource("dynamodb")
 table = dynamodb.Table(TABLE_NAME)
 ec2 = boto3.client("ec2")
-
+sns = boto3.client("sns")
+TOPIC_ARN = os.environ["ALERTS_TOPIC_ARN"]
 
 def find_unattached_volumes():
     paginator = ec2.get_paginator("describe_volumes")
@@ -41,7 +42,11 @@ def handler(event, context):
             "status": "flagged",
         }
         table.put_item(Item=item)
-
+        sns.publish(
+            TopicArn=TOPIC_ARN,
+            Message=f"Unattached EBS volume {volume_id} ({size_gb}GB, ~${estimated_monthly_cost}/month)",
+            Subject="FinOpsGuard: unattached volume detected",
+        )
     print(f"FinOpsGuard: scan complete, found {len(volumes)} unattached volume(s)")
 
     return {
