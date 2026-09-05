@@ -17,4 +17,4 @@ venv/
 .vscode/
 .idea/
 terraform/build/
-terraform/response.json
+**/response.json
