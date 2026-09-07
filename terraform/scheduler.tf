@@ -50,3 +50,35 @@ resource "aws_scheduler_schedule" "orphan_scanner_schedule" {
     role_arn = aws_iam_role.scheduler_invoke.arn
   }
 }
+
+data "aws_iam_policy_document" "scheduler_invoke_deleter" {
+  statement {
+    actions   = ["lambda:InvokeFunction"]
+    resources = [aws_lambda_function.grace_period_deleter.arn]
+  }
+}
+
+resource "aws_iam_policy" "scheduler_invoke_deleter" {
+  name   = "finopsguard-scheduler-invoke-deleter"
+  policy = data.aws_iam_policy_document.scheduler_invoke_deleter.json
+}
+
+resource "aws_iam_role_policy_attachment" "scheduler_invoke_deleter" {
+  role       = aws_iam_role.scheduler_invoke.name
+  policy_arn = aws_iam_policy.scheduler_invoke_deleter.arn
+}
+
+resource "aws_scheduler_schedule" "grace_period_deleter_schedule" {
+  name = "finopsguard-grace-period-deleter-schedule"
+
+  flexible_time_window {
+    mode = "OFF"
+  }
+
+  schedule_expression = "rate(1 day)"
+
+  target {
+    arn      = aws_lambda_function.grace_period_deleter.arn
+    role_arn = aws_iam_role.scheduler_invoke.arn
+  }
+}
