@@ -19,7 +19,7 @@ resource "aws_lambda_function" "grace_period_deleter" {
     variables = {
       FINDINGS_TABLE_NAME = aws_dynamodb_table.findings.name
       ALERTS_TOPIC_ARN    = aws_sns_topic.findings_alerts.arn
-      DRY_RUN             = "true"
+      DRY_RUN             = "false"
     }
   }
 

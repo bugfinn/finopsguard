@@ -2,6 +2,7 @@ import json
 import os
 from datetime import datetime, timezone
 import boto3
+from botocore.exceptions import ClientError
 
 TABLE_NAME = os.environ["FINDINGS_TABLE_NAME"]
 TOPIC_ARN = os.environ["ALERTS_TOPIC_ARN"]
@@ -49,12 +50,43 @@ def handler(event, context):
             print(f"FinOpsGuard: skipping {volume_id}, state is {state} not available")
             continue
 
+        already_gone = False
+        delete_failed = False
+
         if DRY_RUN:
             print(f"FinOpsGuard: DRY RUN, would delete {volume_id}")
         else:
-            ec2.delete_volume(VolumeId=volume_id)
-            print(f"FinOpsGuard: deleted {volume_id}")
-            deleted_count += 1
+            try:
+                ec2.delete_volume(VolumeId=volume_id)
+                print(f"FinOpsGuard: deleted {volume_id}")
+                deleted_count += 1
+            except ClientError as e:
+                error_code = e.response["Error"]["Code"]
+                if error_code == "InvalidVolume.NotFound":
+                    print(
+                        f"FinOpsGuard: {volume_id} was already gone, "
+                        "likely a duplicate run. Treating as already handled."
+                    )
+                    already_gone = True
+                else:
+                    print(f"FinOpsGuard: failed to delete {volume_id}: {error_code}")
+                    delete_failed = True
+
+        if delete_failed:
+            sns.publish(
+                TopicArn=TOPIC_ARN,
+                Subject="FinOpsGuard: deletion failed",
+                Message=f"Volume {volume_id}: grace period expired but deletion "
+                f"failed ({error_code}). Needs manual review.",
+            )
+            continue
+
+        if DRY_RUN:
+            status = "dry_run_would_delete"
+        elif already_gone:
+            status = "already_deleted"
+        else:
+            status = "deleted"
 
         table.put_item(
             Item={
@@ -62,17 +94,19 @@ def handler(event, context):
                 "discovered_at": now,
                 "resource_type": "ebs_volume",
                 "reason": "grace period expired",
-                "status": "dry_run_would_delete" if DRY_RUN else "deleted",
+                "status": status,
             }
         )
 
-        sns.publish(
-            TopicArn=TOPIC_ARN,
-            Subject="FinOpsGuard: grace period expired"
-            + (" (dry run)" if DRY_RUN else ""),
-            Message=f"Volume {volume_id}: grace period expired. "
-            + ("Would delete (dry run)." if DRY_RUN else "Deleted."),
-        )
+        subject = "FinOpsGuard: grace period expired" + (" (dry run)" if DRY_RUN else "")
+        if DRY_RUN:
+            message = f"Volume {volume_id}: grace period expired. Would delete (dry run)."
+        elif already_gone:
+            message = f"Volume {volume_id}: already deleted, no action needed."
+        else:
+            message = f"Volume {volume_id}: deleted."
+
+        sns.publish(TopicArn=TOPIC_ARN, Subject=subject, Message=message)
 
     print(
         f"FinOpsGuard: checked {len(expired_volumes)} expired volume(s), "
