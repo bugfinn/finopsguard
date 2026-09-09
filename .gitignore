@@ -5,6 +5,7 @@
 override.tf
 override.tf.json
 *.tfvars
+**/.infracost/
 
 # Python (Lambda source)
 __pycache__/
