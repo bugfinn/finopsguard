@@ -12,7 +12,8 @@ taggable_types := {
 deny contains msg if {
 	some resource_type, resources in input.resource
 	taggable_types[resource_type]
-	some resource_name, resource_body in resources
+	some resource_name, resource_bodies in resources
+	some resource_body in resource_bodies
 	tags := object.get(resource_body, "tags", {})
 	tag_keys := {k | some k, _ in tags}
 	missing := required_tags - tag_keys
