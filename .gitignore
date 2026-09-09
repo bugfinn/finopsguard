@@ -6,6 +6,8 @@ override.tf
 override.tf.json
 *.tfvars
 **/.infracost/
+terraform/tfplan
+terraform/tfplan.json
 
 # Python (Lambda source)
 __pycache__/
