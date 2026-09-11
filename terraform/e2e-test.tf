@@ -8,5 +8,6 @@ resource "aws_ebs_volume" "e2e_demo" {
 
   tags = {
     Project = "finopsguard"
+    ManagedBy = "terraform"
   }
 }
