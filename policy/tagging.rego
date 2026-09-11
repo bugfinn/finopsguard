@@ -7,6 +7,7 @@ taggable_types := {
 	"aws_lambda_function",
 	"aws_iam_role",
 	"aws_sns_topic",
+        "aws_ebs_volume",
 }
 
 deny contains msg if {
