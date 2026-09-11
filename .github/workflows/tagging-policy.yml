@@ -2,8 +2,6 @@ name: Tagging Policy Check
 
 on:
   pull_request:
-    paths:
-      - 'terraform/**'
 
 permissions:
   contents: read
@@ -16,7 +14,16 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Check for Terraform changes
+        uses: dorny/paths-filter@v3
+        id: changes
+        with:
+          filters: |
+            terraform:
+              - 'terraform/**'
+
       - name: Install Conftest
+        if: steps.changes.outputs.terraform == 'true'
         run: |
           LATEST=$(curl -s https://api.github.com/repos/open-policy-agent/conftest/releases/latest | grep tag_name | cut -d '"' -f 4 | sed 's/v//')
           curl -fsSL -o conftest.tar.gz "https://github.com/open-policy-agent/conftest/releases/download/v${LATEST}/conftest_${LATEST}_Linux_x86_64.tar.gz"
@@ -24,4 +31,9 @@ jobs:
           sudo mv conftest /usr/local/bin/
 
       - name: Run tagging policy check
+        if: steps.changes.outputs.terraform == 'true'
         run: conftest test terraform/*.tf --policy policy
+
+      - name: No Terraform changes to check
+        if: steps.changes.outputs.terraform == 'false'
+        run: echo "No changes under terraform/, nothing to check here."
